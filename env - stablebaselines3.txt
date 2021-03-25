@@ -1,0 +1,11 @@
+conda create --name stablebaselines3 python=3.7
+conda activate stablebaselines3
+
+pip install stable-baselines3[extra]
+
+conda install -c conda-forge jupyter_contrib_nbextensions
+conda install nb_conda
+sudo apt-get install swig python-pygame
+pip install Box2D
+pip install box2d-py
+

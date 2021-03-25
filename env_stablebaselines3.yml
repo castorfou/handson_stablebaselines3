@@ -3,4 +3,11 @@ channels:
   - defaults
 dependencies:
   - python=3.7
+  - jupyter_contrib_nbextensions
+  - nb_conda
+  - pytorch==1.7.1
+  - cudatoolkit=11.0
+  - torchaudio==0.7.2
+  - torchvision==0.8.2
+  - conda-forge::fire
 prefix: /home/explore/miniconda3/envs/stablebaselines3
