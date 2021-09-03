@@ -8,4 +8,4 @@ conda install nb_conda
 sudo apt-get install swig python-pygame
 pip install Box2D
 pip install box2d-py
-
+pip install yapf
