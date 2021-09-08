@@ -41,7 +41,7 @@
 
 # ![image.png](attachment:image.png)
 
-# In[116]:
+# In[1]:
 
 
 import gym
@@ -91,12 +91,12 @@ class GoldMine(gym.Env):
         
 
 
-# In[124]:
+# In[3]:
 
 
 env = GoldMine()
 env.reset()
-for i in range(1000):
+for i in range(100):
     action = env.action_space.sample()
     obs, rewards, done, info = env.step(action)
     env.render()
@@ -105,7 +105,7 @@ for i in range(1000):
     
 
 
-# In[125]:
+# In[4]:
 
 
 import stable_baselines3
@@ -120,13 +120,31 @@ check_env(env)
 
 
 
-# In[126]:
+# In[5]:
 
 
 from stable_baselines3 import DQN
 
 model = DQN("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=10000, log_interval=4)
+
+
+# In[6]:
+
+
+print("Action Space {}".format(env.action_space))
+print("State Space {}".format(env.observation_space))
+
+
+# ## solve it with Q-learning
+
+# https://medium.com/swlh/introduction-to-q-learning-with-openai-gym-2d794da10f3d
+
+# In[134]:
+
+
+import numpy as np
+Q = np.zeros((env.observation_space.n, env.action_space.n))
 
 
 # In[ ]:
