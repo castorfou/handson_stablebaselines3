@@ -128,6 +128,8 @@ model = DQN("MlpPolicy", env, verbose=1, tensorboard_log="./tensorboard/")
 model.learn(total_timesteps=100000, log_interval=4, tb_log_name="goldmine simple reward")
 
 
+# ## tensorboard
+
 # In[ ]:
 
 
@@ -135,6 +137,8 @@ get_ipython().system('tensorboard --logdir ./tensorboard/')
 
 
 # ![image.png](attachment:image.png)
+
+# ## save model
 
 # In[28]:
 
@@ -293,9 +297,9 @@ for i in range(100):
     if done: break
 
 
-# # goldmine with action box and DDPG
+# # goldmine with action box (continuous)
 
-# In[3]:
+# In[37]:
 
 
 import gym
@@ -305,6 +309,8 @@ import stable_baselines3
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3 import DQN, DDPG
 from math import sqrt
+import numpy as np
+from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 
 class GoldMine4(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -315,23 +321,37 @@ class GoldMine4(gym.Env):
         #action[0] - N (positive) S (negative)
         #action[1] - E (positive) W (negative)
         #0,0 no move
-        self.action_space = spaces.Box(low=-2.0, high=2.0, shape=(2,))
+        #"We recommend you to use a symmetric and normalized Box action space (range=[-1, 1]) ", we will multiply effect by 2
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,))
         self.observation_space = spaces.Box(low=0.0, high=5.0, shape=(2,))
+        
     
     def reset(self):
         self.current_position = self.observation_space.sample()
+        self.last_action = np.array([])
+        self.last_effect = False
         self.global_reward = 0
         print(f'reset at position {self.current_position}')
         return self.current_position
         
     def step(self, action):
+        action *= 2
+        effect = False
         if ((action[0]+self.current_position[1]<5) & (action[0]+self.current_position[1]>0)):
+            effect = True
             self.current_position[1] += action[0]
         if ((action[1]+self.current_position[0]<5) & (action[1]+self.current_position[0]>0)):
+            effect = True
             self.current_position[0] += action[1]
 
-        #we will calculate a distance to the gold pot
         reward = -10
+        
+        if (self.last_action.size > 0):
+            ## can be used to compare to last action if it is valid
+            pass
+        self.last_action = action
+        self.last_effect = effect
+
         done = False
         if (self.current_position[0] > 4) & (self.current_position[1] > 4):
             reward = 100
@@ -341,16 +361,40 @@ class GoldMine4(gym.Env):
             
     
     def render(self):
-        print(f'position {self.current_position}, done {done}, global_reward {self.global_reward}')
+        print(f'position {self.current_position}, action {self.last_action}, effect {self.last_effect}, done {done}, global_reward {self.global_reward}')
         
         
+
+
+# In[34]:
+
+
+env_gold4 = GoldMine4()
+env_gold4.reset()
+for i in range(100):
+    action = env_gold4.action_space.sample()
+    obs, rewards, done, info = env_gold4.step(action)
+    env_gold4.render()
+    if done: env_gold4.reset()
+
+
+# ## use of DDPG
+# 
+# https://stable-baselines3.readthedocs.io/en/master/modules/ddpg.html
+
+# In[40]:
 
 
 env_gold4 = GoldMine4()
 check_env(env_gold4)
 
-model_gold4 = DDPG("MlpPolicy", env_gold4, verbose=1, tensorboard_log="./tensorboard/")
-model_gold4.learn(total_timesteps=100000, log_interval=4, tb_log_name="goldmine4 ddpg")
+# The noise objects for DDPG
+n_actions = env_gold4.action_space.shape[-1]
+action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+
+
+model_gold4 = DDPG("MlpPolicy", env_gold4, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+model_gold4.learn(total_timesteps=10000, log_interval=4, tb_log_name="goldmine4 ddpg")
 
 env_gold4.reset()
 for i in range(100):
@@ -359,6 +403,112 @@ for i in range(100):
     obs, rewards, done, info = env_gold4.step(action)
     env_gold4.render()
     if done: break
+env_gold4.close()
+
+
+# ## use of A2C
+# 
+# https://stable-baselines3.readthedocs.io/en/master/modules/a2c.html
+
+# In[44]:
+
+
+from stable_baselines3 import A2C
+
+env_gold4 = GoldMine4()
+check_env(env_gold4)
+
+model_gold_a2c = A2C("MlpPolicy", env_gold4, verbose=2,tensorboard_log="./tensorboard/")
+model_gold_a2c.learn(total_timesteps=10000, log_interval=4, tb_log_name="goldmine4 a2c")
+
+env_gold4.reset()
+for i in range(100):
+    action, _ = model_gold_a2c.predict(env_gold4.current_position)
+    print(f'action {action}')
+    obs, rewards, done, info = env_gold4.step(action)
+    env_gold4.render()
+    if done: break
+env_gold4.close()
+
+
+# ## use of PPO
+# 
+# https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html
+
+# In[45]:
+
+
+from stable_baselines3 import PPO
+
+env_gold4 = GoldMine4()
+check_env(env_gold4)
+
+model_gold_ppo = PPO("MlpPolicy", env_gold4, verbose=2,tensorboard_log="./tensorboard/")
+model_gold_ppo.learn(total_timesteps=10000, log_interval=4, tb_log_name="goldmine4 ppo")
+
+env_gold4.reset()
+for i in range(100):
+    action, _ = model_gold_ppo.predict(env_gold4.current_position)
+    print(f'action {action}')
+    obs, rewards, done, info = env_gold4.step(action)
+    env_gold4.render()
+    if done: break
+env_gold4.close()
+
+
+# ## use of SAC
+# 
+# https://stable-baselines3.readthedocs.io/en/master/modules/sac.html
+
+# In[46]:
+
+
+from stable_baselines3 import SAC
+
+env_gold4 = GoldMine4()
+check_env(env_gold4)
+
+model_gold_sac = SAC("MlpPolicy", env_gold4, verbose=2,tensorboard_log="./tensorboard/")
+model_gold_sac.learn(total_timesteps=10000, log_interval=4, tb_log_name="goldmine4 sac")
+
+env_gold4.reset()
+for i in range(100):
+    action, _ = model_gold_sac.predict(env_gold4.current_position)
+    print(f'action {action}')
+    obs, rewards, done, info = env_gold4.step(action)
+    env_gold4.render()
+    if done: break
+env_gold4.close()
+
+
+# ## use of TD3
+# 
+# https://stable-baselines3.readthedocs.io/en/master/modules/td3.html
+
+# In[47]:
+
+
+from stable_baselines3 import TD3
+from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
+
+env_gold4 = GoldMine4()
+check_env(env_gold4)
+
+n_actions = env_gold4.action_space.shape[-1]
+action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+
+
+model_gold_td3 = TD3("MlpPolicy", env_gold4, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+model_gold_td3.learn(total_timesteps=10000, log_interval=4, tb_log_name="goldmine4 td3")
+
+env_gold4.reset()
+for i in range(100):
+    action, _ = model_gold_td3.predict(env_gold4.current_position)
+    print(f'action {action}')
+    obs, rewards, done, info = env_gold4.step(action)
+    env_gold4.render()
+    if done: break
+env_gold4.close()
 
 
 # In[ ]:
