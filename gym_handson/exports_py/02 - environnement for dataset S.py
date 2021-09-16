@@ -3,7 +3,7 @@
 
 # # Janus temporary gym environment
 
-# In[23]:
+# In[22]:
 
 
 import gym
@@ -106,7 +106,7 @@ class JanusTemp(gym.Env):
 
 # # load of data
 
-# In[18]:
+# In[23]:
 
 
 import numpy as np
@@ -119,16 +119,18 @@ file1 = pd.read_csv(template_filename.format('file1'), index_col=0)
 file2 = pd.read_csv(template_filename.format('file2'), index_col=0)
 file3 = pd.read_csv(template_filename.format('file3'), index_col=0)
 vav = pd.read_csv(template_filename.format('VAV'), index_col=0)
+ti = pd.read_csv(template_filename.format('TI'), index_col=0)
+ts = pd.read_csv(template_filename.format('TS'), index_col=0)
 
 
-# In[19]:
+# In[24]:
 
 
 print(f'valeur min dans le dataset {min(file3.min())}, \ntop 5 min \n {file3.min()[file3.min().argsort()].head(5)}')
 print(f'valeur maxi dans le dataset {max(file3.max())}, \ntop 5 max \n {file3.max()[file3.max().argsort(reversed)].tail(5)}')
 
 
-# In[20]:
+# In[25]:
 
 
 file3.describe()
@@ -136,7 +138,7 @@ file3.describe()
 
 # ## convert observation space sample to real observation 
 
-# In[21]:
+# In[26]:
 
 
 def convert_to_real_obs(observation, observation_dataset):
@@ -153,7 +155,7 @@ def convert_to_real_obs(observation, observation_dataset):
         observation_dataset.min()) + observation_dataset.min()
 
 
-# In[24]:
+# In[27]:
 
 
 env_test = JanusTemp()
@@ -164,7 +166,7 @@ from stable_baselines3.common.env_checker import check_env
 convert_to_real_obs(env_test.observation_space.sample(), file3)
 
 
-# In[25]:
+# In[28]:
 
 
 obs = env_test.observation_space.sample()
@@ -181,7 +183,7 @@ plt.show()
 
 # ## revert 
 
-# In[26]:
+# In[29]:
 
 
 def revert_to_obs_space(real_observation, observation_dataset):
@@ -198,7 +200,7 @@ def revert_to_obs_space(real_observation, observation_dataset):
             real_observation.shape[1])).reshape(-1)
 
 
-# In[27]:
+# In[30]:
 
 
 revert_to_obs_space(file3.sample(), file3)
@@ -208,7 +210,7 @@ revert_to_obs_space(file3.sample(), file3)
 
 # ## preprocessing, train, test data
 
-# In[28]:
+# In[33]:
 
 
 ## ML model
@@ -235,8 +237,12 @@ y_df = y_df.fillna(y_df.mean())
 
 vav_df = vav.copy()
 # Dropping few columns
-y_df.drop(['target_1', 'target_2', 'target_3', 'target_4'], axis=1, inplace=True) #to simplify with a 2-dimension target space
-vav_df.drop(['target_1', 'target_2', 'target_3', 'target_4'], axis=1, inplace=True)
+
+for dataset in [y_df, vav_df, ti, ts]:
+    dataset.drop(['target_1', 'target_2', 'target_3', 'target_4'],
+          axis=1,
+          inplace=True)  #to simplify with a 2-dimension target space
+
 
 print('features shape: {}, \ntargets shape: {}'.format(x_df.shape, y_df.shape))
 
@@ -244,7 +250,7 @@ x_train, x_test, y_train, y_test = train_test_split(x_df, y_df, test_size=0.1, r
 print('\nLength of train is {}, test is {}'.format(len(x_train), len(x_test)))
 
 
-# In[29]:
+# In[13]:
 
 
 action_columns = [col for col in x_df.columns if int(col.split('_')[-1])<=97] ##data_97 is the last Action column
@@ -273,7 +279,7 @@ print('RMSE: ',rmse)
 print('R-squared: ',r2)
 
 
-# In[30]:
+# In[14]:
 
 
 ## ---- save/load the model to disk
@@ -290,7 +296,7 @@ print(f'R squared: {ml_model.score(x_test, y_test.values):0.04f}')
 
 # ## reward calculation
 
-# In[31]:
+# In[14]:
 
 
 # list of [min, max, step, range] for each var
@@ -329,7 +335,37 @@ print(discrete_reward([vav['target_0'].values[0]+5*output_steps[0], vav['target_
 print(discrete_reward([vav['target_0'].values[0]+10*output_steps[0], vav['target_5'].values[0]+10*output_steps[0]]))
 
 
-# In[32]:
+# ![image.png](attachment:image.png)
+
+# In[50]:
+
+
+def discrete_reward_continuous(new_y):
+    ''' Discrete reward '''
+    final_reward = 0 
+    
+    for i in range(len(new_y)):
+        reward = -5
+        if ( ti.iloc[:,i].values[0] <=  new_y[i] <= ts.iloc[:,i].values[0]):
+            if ( new_y[i] >= vav_df.iloc[:,i].values[0] ):
+                reward = 1-(new_y[i]-vav_df.iloc[:,i].values[0])/(ts.iloc[:,i].values[0]-vav_df.iloc[:,i].values[0])
+            else:
+                reward = 1-(new_y[i]-ti.iloc[:,i].values[0])/(vav_df.iloc[:,i].values[0]-ti.iloc[:,i].values[0])
+        final_reward+=reward
+#         print(f'reward {reward} final_reward {final_reward} i {i}')
+
+    if (final_reward>0.7*len(new_y)):
+        on_target = True
+#         print('On Target : ', new_y)
+        
+    return final_reward
+
+#vav
+print(discrete_reward_continuous([vav['target_0'].values[0], vav['target_5'].values[0]]))
+print(discrete_reward_continuous([vav['target_0'].values[0]+0.1, vav['target_5'].values[0]]))
+
+
+# In[48]:
 
 
 import matplotlib.pyplot as plt
@@ -350,8 +386,20 @@ def plot_targets_reward(dataset):
                    lw=0.8,
                    ls='--',
                    label='vav')
+        ax.axhline(y=ti[targets[count]].values[0],
+                   color='r',
+                   lw=0.8,
+                   ls='--',
+                   label='ti')
+        ax.axhline(y=ts[targets[count]].values[0],
+                   color='r',
+                   lw=0.8,
+                   ls='--',
+                   label='ts')
+        
+        
         ax.legend()
-    rewards = [discrete_reward([dataset.loc[i, targets[0]], dataset.loc[i, targets[1]]]) for i in dataset.index]
+    rewards = [discrete_reward_continuous([dataset.loc[i, targets[0]], dataset.loc[i, targets[1]]]) for i in dataset.index]
     axes[-1].plot(np.arange(0, len(dataset[targets[count]])),
                   rewards, label='reward')
     axes[-1].legend()
@@ -359,13 +407,13 @@ def plot_targets_reward(dataset):
     plt.show()
 
 
-# In[33]:
+# In[49]:
 
 
 plot_targets_reward(y_df)
 
 
-# In[34]:
+# In[18]:
 
 
 full_x = file3.copy()[x_df.columns]
@@ -375,7 +423,7 @@ inferred_y = pd.DataFrame(ml_model.predict(full_x), columns=y_df.columns)
 plot_targets_reward(inferred_y)
 
 
-# In[35]:
+# In[19]:
 
 
 partial_x = file1.copy()[x_df.columns]
@@ -387,7 +435,7 @@ plot_targets_reward(predicted_partial)
 
 # ## reward calculation based on observation
 
-# In[36]:
+# In[20]:
 
 
 real_observation = full_x.sample()
@@ -398,7 +446,7 @@ print(f'predicted y from this sample {predicted_y_from_obs} {predicted_y_from_ob
 discrete_reward(predicted_y_from_obs)
 
 
-# In[37]:
+# In[21]:
 
 
 # list of [min, max, step, range] for each var
@@ -419,7 +467,7 @@ def discrete_reward_from_obs(observation):
 print(discrete_reward_from_obs(full_x.sample()))
 
 
-# In[38]:
+# In[22]:
 
 
 for i in range(100):
@@ -428,7 +476,7 @@ for i in range(100):
 
 # # Janus gym environment
 
-# In[97]:
+# In[23]:
 
 
 import gym
@@ -603,7 +651,7 @@ class Janus(gym.Env):
         return reward
 
 
-# In[98]:
+# In[24]:
 
 
 janus_env = Janus()

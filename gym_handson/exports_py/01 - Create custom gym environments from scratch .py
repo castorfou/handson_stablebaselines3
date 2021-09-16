@@ -43,7 +43,7 @@
 
 # ## env
 
-# In[40]:
+# In[1]:
 
 
 import gym
@@ -90,7 +90,7 @@ class GoldMine(gym.Env):
         
 
 
-# In[41]:
+# In[21]:
 
 
 env = GoldMine()
@@ -106,7 +106,7 @@ for i in range(100):
 
 # ## checkenv
 
-# In[42]:
+# In[25]:
 
 
 import stable_baselines3
@@ -117,12 +117,12 @@ check_env(env)
 
 # ## train DQN
 
-# In[46]:
+# In[26]:
 
 
 from stable_baselines3 import DQN
 
-del model
+# del model
 model = DQN("MlpPolicy", env, verbose=1, tensorboard_log="./tensorboard/")
 
 model.learn(total_timesteps=100000, log_interval=4, tb_log_name="goldmine simple reward")
@@ -148,7 +148,7 @@ model.save('dqn_simplest_model')
 
 # ## run optimization
 
-# In[44]:
+# In[27]:
 
 
 env.reset()
@@ -299,7 +299,7 @@ for i in range(100):
 
 # # goldmine with action box (continuous)
 
-# In[37]:
+# In[28]:
 
 
 import gym
@@ -366,7 +366,7 @@ class GoldMine4(gym.Env):
         
 
 
-# In[34]:
+# In[29]:
 
 
 env_gold4 = GoldMine4()
@@ -382,7 +382,7 @@ for i in range(100):
 # 
 # https://stable-baselines3.readthedocs.io/en/master/modules/ddpg.html
 
-# In[40]:
+# In[30]:
 
 
 env_gold4 = GoldMine4()
