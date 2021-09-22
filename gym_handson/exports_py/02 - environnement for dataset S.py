@@ -3,7 +3,7 @@
 
 # # Janus temporary gym environment
 
-# In[22]:
+# In[1]:
 
 
 import gym
@@ -106,7 +106,7 @@ class JanusTemp(gym.Env):
 
 # # load of data
 
-# In[23]:
+# In[2]:
 
 
 import numpy as np
@@ -123,14 +123,14 @@ ti = pd.read_csv(template_filename.format('TI'), index_col=0)
 ts = pd.read_csv(template_filename.format('TS'), index_col=0)
 
 
-# In[24]:
+# In[3]:
 
 
 print(f'valeur min dans le dataset {min(file3.min())}, \ntop 5 min \n {file3.min()[file3.min().argsort()].head(5)}')
 print(f'valeur maxi dans le dataset {max(file3.max())}, \ntop 5 max \n {file3.max()[file3.max().argsort(reversed)].tail(5)}')
 
 
-# In[25]:
+# In[4]:
 
 
 file3.describe()
@@ -138,7 +138,7 @@ file3.describe()
 
 # ## convert observation space sample to real observation 
 
-# In[26]:
+# In[5]:
 
 
 def convert_to_real_obs(observation, observation_dataset):
@@ -155,7 +155,7 @@ def convert_to_real_obs(observation, observation_dataset):
         observation_dataset.min()) + observation_dataset.min()
 
 
-# In[27]:
+# In[6]:
 
 
 env_test = JanusTemp()
@@ -166,7 +166,7 @@ from stable_baselines3.common.env_checker import check_env
 convert_to_real_obs(env_test.observation_space.sample(), file3)
 
 
-# In[28]:
+# In[7]:
 
 
 obs = env_test.observation_space.sample()
@@ -183,7 +183,7 @@ plt.show()
 
 # ## revert 
 
-# In[29]:
+# In[8]:
 
 
 def revert_to_obs_space(real_observation, observation_dataset):
@@ -200,7 +200,7 @@ def revert_to_obs_space(real_observation, observation_dataset):
             real_observation.shape[1])).reshape(-1)
 
 
-# In[30]:
+# In[9]:
 
 
 revert_to_obs_space(file3.sample(), file3)
@@ -210,7 +210,7 @@ revert_to_obs_space(file3.sample(), file3)
 
 # ## preprocessing, train, test data
 
-# In[33]:
+# In[10]:
 
 
 ## ML model
@@ -250,7 +250,7 @@ x_train, x_test, y_train, y_test = train_test_split(x_df, y_df, test_size=0.1, r
 print('\nLength of train is {}, test is {}'.format(len(x_train), len(x_test)))
 
 
-# In[13]:
+# In[11]:
 
 
 action_columns = [col for col in x_df.columns if int(col.split('_')[-1])<=97] ##data_97 is the last Action column
@@ -260,7 +260,7 @@ print(f'Observation space dimension: {len(x_df.columns)}')
 
 # ## rf prediction model
 
-# In[96]:
+# In[12]:
 
 
 ## Model fitting

@@ -3,7 +3,7 @@
 
 # # Janus gym environment
 
-# In[332]:
+# In[96]:
 
 
 import gym
@@ -111,6 +111,11 @@ class Janus(gym.Env):
         self.current_position = self.revert_to_obs_space(
             self.full_x.iloc[idx].values.reshape(-1), self.full_x)
         
+        # to fix The observation returned by the `reset()` method does not match the given observation space
+        # maybe won't happen on linux
+        # on windows looks like float64 is the defautl for pandas -> numpy and gym expects float32 (contains tries to cast to dtype(float32))
+        self.current_position = self.current_position.astype('float32')
+        
         self.last_action = np.array([])
         self.last_effect = False
         self.global_reward = 0
@@ -124,29 +129,37 @@ class Janus(gym.Env):
             self.current_position[act]=action[index]
         self.last_action = action
         self.episode_length += 1
+        done = False
         
-        reward = self.discrete_reward_from_obs(
+        reward = self.reward(
             self.convert_to_real_obs(self.current_position,
                                      self.full_x).values.reshape(1,-1))
-        done = reward >= -0.1*self.y_df.shape[1]
+        if (reward >= -0.1*self.y_df.shape[1]):
+            done = True
+        
+#         print(f'target reached {done} reward {reward:0.03f} n° step {self.episode_length} action {self.last_action} done threeshold {-0.1*self.y_df.shape[1]:0.03f}')
+        
         if done:
-            reward = 100
+            reward += 100
         
         if self.episode_length>100:
-            #print('episode too long -> reset')
+            print('episode too long -> reset')
             done = True
             
-        if (max(abs(action))):
+        if (max(abs(action))==1):
             # if on border, we kill episode
+            print('border reached -> done -> reset')
+            reward -= 50
             done = True
             
 
         self.global_reward += reward
+#         print(f'  reward {reward:0.03f} global reward {self.global_reward:0.03f} done {done} action {action} step {self.episode_length}')
         return self.current_position, reward, done, {}
 
     def render(self):
         print(
-            f'position {self.current_position[:10]}, action {self.last_action[:5]}, effect {self.last_effect}, done {done}, global_reward {self.global_reward}'
+            f'position {self.current_position[:10]}, action {self.last_action[:5]}, effect {self.last_effect}, done {done}, global_reward {self.global_reward:0.03f}'
         )
 
     def convert_to_real_obs(self, observation, observation_dataset):
@@ -176,13 +189,13 @@ class Janus(gym.Env):
             (observation_dataset.max() - observation_dataset.min()) -
             np.ones(self.observation_space.shape)).reshape(-1)
 
-    def discrete_reward_from_obs(self, observation):
+    def reward(self, observation):
         ''' Discrete reward 
         observation if from real world not observation space
         '''
 
         new_y = self.ml_model.predict(observation).reshape(-1)
-        return self.discrete_reward_continuous(new_y)
+        return self.continuous_reward_clown_hat(new_y)
 
     def discrete_reward(self, new_y):
         ''' Discrete reward '''
@@ -207,7 +220,7 @@ class Janus(gym.Env):
     
     
     
-    def discrete_reward_continuous(self, new_y):
+    def continuous_reward_clown_hat(self, new_y):
         ''' Continuous reward '''
         final_reward = 0 
 
@@ -230,19 +243,13 @@ class Janus(gym.Env):
 
 
 
-# In[317]:
+# In[92]:
 
 
 janus_env = Janus()
 from stable_baselines3.common.env_checker import check_env
 
 check_env(janus_env)
-
-
-# In[ ]:
-
-
-
 
 
 # # SAC training
@@ -270,21 +277,25 @@ janus_env.close()
 
 # # TD3 training
 
-# In[ ]:
+# In[94]:
 
 
 from stable_baselines3 import TD3
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 
 janus_env = Janus()
-# check_env(janus_env)
+check_env(janus_env)
 
 n_actions = janus_env.action_space.shape[-1]
 action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
 
 model_janus_td3 = TD3("MlpPolicy", janus_env, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
-model_janus_td3.learn(total_timesteps=10000, log_interval=4, tb_log_name="janus partial td3")
+model_janus_td3.learn(total_timesteps=1000, log_interval=4, tb_log_name="janus partial td3 - reward clown hat")
+
+
+# In[99]:
+
 
 janus_env.reset()
 for i in range(100):
@@ -292,7 +303,9 @@ for i in range(100):
     print(f'action {action}')
     obs, rewards, done, info = janus_env.step(action)
     janus_env.render()
-    if done: break
+    if done: 
+        print(f'done within {i+1} iterations')
+        break
 janus_env.close()
 
 
