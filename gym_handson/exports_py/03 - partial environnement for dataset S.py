@@ -3,7 +3,7 @@
 
 # # Janus gym environment
 
-# In[96]:
+# In[25]:
 
 
 import gym
@@ -116,7 +116,7 @@ class Janus(gym.Env):
         # on windows looks like float64 is the defautl for pandas -> numpy and gym expects float32 (contains tries to cast to dtype(float32))
         self.current_position = self.current_position.astype('float32')
         
-        self.last_action = np.array([])
+        self.last_action = self.current_position[self.list_important_actions]
         self.last_effect = False
         self.global_reward = 0
         self.episode_length = 0
@@ -146,11 +146,11 @@ class Janus(gym.Env):
             print('episode too long -> reset')
             done = True
             
-        if (max(abs(action))==1):
-            # if on border, we kill episode
-            print('border reached -> done -> reset')
-            reward -= 50
-            done = True
+#         if (max(abs(action))==1):
+#             # if on border, we kill episode
+#             print('border reached -> done -> reset')
+#             reward -= 50
+#             done = True
             
 
         self.global_reward += reward
@@ -243,7 +243,7 @@ class Janus(gym.Env):
 
 
 
-# In[92]:
+# In[26]:
 
 
 janus_env = Janus()
@@ -277,25 +277,33 @@ janus_env.close()
 
 # # TD3 training
 
-# In[94]:
+# In[27]:
 
 
 from stable_baselines3 import TD3
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
+
+model_name = "janus partial td3 - reward clown hat noborder"
 
 janus_env = Janus()
 check_env(janus_env)
 
 n_actions = janus_env.action_space.shape[-1]
 action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
-
+action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
 
 model_janus_td3 = TD3("MlpPolicy", janus_env, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
-model_janus_td3.learn(total_timesteps=1000, log_interval=4, tb_log_name="janus partial td3 - reward clown hat")
+model_janus_td3.learn(total_timesteps=1000, log_interval=4, tb_log_name=model_name)
+model_janus_td3.save("./data/"+model_name)
 
 
-# In[99]:
+# In[28]:
 
+
+print(f'model used: {model_name}')
+
+model_janus_td3 = TD3("MlpPolicy", janus_env, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+model_janus_td3.load("./data/"+model_name)
 
 janus_env.reset()
 for i in range(100):
@@ -307,6 +315,116 @@ for i in range(100):
         print(f'done within {i+1} iterations')
         break
 janus_env.close()
+
+
+# In[29]:
+
+
+janus_env = Janus()
+check_env(janus_env)
+
+# model_name = "janus partial td3 - reward clown hat"
+print(f'model used: {model_name}')
+model_janus_td3 = TD3("MlpPolicy", janus_env, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+model_janus_td3.load("./data/"+model_name)
+
+janus_env.reset()
+new_y = janus_env.ml_model.predict(janus_env.convert_to_real_obs(janus_env.current_position,
+                                     janus_env.full_x).values.reshape(1,-1)).reshape(-1)
+print(f'init results:  {new_y} reward {janus_env.continuous_reward_clown_hat(new_y):0.03f} action {janus_env.last_action}')
+
+for i in range(100):
+    action, _ = model_janus_td3.predict(janus_env.current_position)
+#     print(f'action {action}')
+    obs, rewards, done, info = janus_env.step(action)
+#     janus_env.render()
+    if done: 
+        print(f'done within {i+1} iterations')
+        break
+new_y = janus_env.ml_model.predict(janus_env.convert_to_real_obs(janus_env.current_position,
+                                     janus_env.full_x).values.reshape(1,-1)).reshape(-1)
+print(f'new results after {i+1} iterations:  {new_y} associated reward {janus_env.continuous_reward_clown_hat(new_y):0.03f}  action {janus_env.last_action}')
+janus_env.vav_df
+
+
+# # plot target
+
+# In[87]:
+
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from PIL import Image
+
+# Create figure and axes
+fig, ax = plt.subplots()
+janus_env = Janus()
+# print(janus_env.vav_df)
+# print(janus_env.ti)
+# print(janus_env.ts)
+
+inf_x = janus_env.ti.iloc[0][0]
+sup_x = janus_env.ts.iloc[0][0]
+inf_y = janus_env.ti.iloc[0][1]
+sup_y = janus_env.ts.iloc[0][1]
+inf_limx = min(inf_x, janus_env.y_df.min()[0])
+sup_limx = max(sup_x, janus_env.y_df.max()[0])
+inf_limy = min(inf_y, janus_env.y_df.min()[1])
+sup_limy = max(sup_y, janus_env.y_df.max()[1])
+
+# Create a Rectangle patch
+rect = patches.Rectangle((inf_x, inf_y), (sup_x-inf_x), (sup_y-inf_y), linewidth=1, color='red', facecolor='none', label='CDC')
+ax.add_patch(rect)
+
+#create VAV point
+plt.scatter(janus_env.vav_df.iloc[0].values[0], janus_env.vav_df.iloc[0].values[1], color='black', label='vav', zorder =2)
+
+# Add the patch to the Axes
+plt.xlim([inf_limx-1, sup_limx+1])
+plt.ylim([inf_limy-1, sup_limy+1])
+plt.legend()
+plt.show()
+
+
+# In[106]:
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+from itertools import product
+
+# Fixing random state for reproducibility
+np.random.seed(19680801)
+
+
+def randrange(n, vmin, vmax):
+    """
+    Helper function to make an array of random numbers having shape (n, )
+    with each number distributed Uniform(vmin, vmax).
+    """
+    return (vmax - vmin)*np.random.rand(n) + vmin
+
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')
+
+n = 100
+
+# For each set of style and range settings, plot n random points in the box
+# defined by x in [23, 32], y in [0, 100], z in [zlow, zhigh].
+
+X = np.arange(inf_limx, sup_limx, 0.2)
+Y = np.arange(inf_limy, sup_limy, 0.2)
+for x in X:
+    for y in Y:
+        z = janus_env.continuous_reward_clown_hat([x, y])
+        ax.scatter(x, y, z)
+    
+
+ax.set_xlabel('X Label')
+ax.set_ylabel('Y Label')
+ax.set_zlabel('Z Label')
+
+plt.show()
 
 
 # In[ ]:
