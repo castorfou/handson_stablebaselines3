@@ -5,6 +5,7 @@ pip install stable-baselines3[extra]
 
 conda install -c conda-forge jupyter_contrib_nbextensions
 conda install nb_conda
+conda install -c plotly plotly
 sudo apt-get install swig python-pygame
 pip install Box2D
 pip install box2d-py

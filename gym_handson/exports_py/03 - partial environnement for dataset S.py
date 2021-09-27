@@ -3,7 +3,7 @@
 
 # # Janus gym environment
 
-# In[25]:
+# In[96]:
 
 
 import gym
@@ -29,7 +29,7 @@ class Janus(gym.Env):
     metadata = {'render.modes': ['human']}
     template_filename = 'data/dataset-S_public/public/dataset_S-{}.csv'
 
-    def __init__(self):
+    def __init__(self, idx=47):
         super(Janus, self).__init__()
         #actions: move on the grid, by continuous value in -1,1
         #0,0 no move
@@ -101,15 +101,17 @@ class Janus(gym.Env):
         ## get limits for Rewards
         self.output_steps = [round((self.y_df[i].max() - self.y_df[i].min())/scale, decimals)                         for i in self.y_df.columns]
         print('Output steps: ', self.output_steps)
+        
+        self.idx=idx
 
     def reset(self):
 #         self.current_position = self.revert_to_obs_space(
 #             self.full_x.sample().values.reshape(-1), self.full_x)
-        random.seed(13)
-        idx = random.randint(0,len(janus_env.partial_x)-1)
-        idx = 47
+#         random.seed(13)
+#         idx = random.randint(0,len(janus_env.partial_x)-1)
         self.current_position = self.revert_to_obs_space(
-            self.full_x.iloc[idx].values.reshape(-1), self.full_x)
+            self.full_x.iloc[self.idx].values.reshape(-1), self.full_x)
+        
         
         # to fix The observation returned by the `reset()` method does not match the given observation space
         # maybe won't happen on linux
@@ -230,7 +232,7 @@ class Janus(gym.Env):
                 if ( new_y[i] >= self.vav_df.iloc[:,i].values[0] ):
                     reward = 1-(new_y[i]-self.vav_df.iloc[:,i].values[0])/(self.ts.iloc[:,i].values[0]-self.vav_df.iloc[:,i].values[0])
                 else:
-                    reward = 1-(new_y[i]-self.ti.iloc[:,i].values[0])/(self.vav_df.iloc[:,i].values[0]-self.ti.iloc[:,i].values[0])
+                    reward = 1-(self.vav_df.iloc[:,i].values[0]-new_y[i])/(self.vav_df.iloc[:,i].values[0]-self.ti.iloc[:,i].values[0])
             reward += -1
             final_reward+=reward
     #         print(f'reward {reward} final_reward {final_reward} i {i}')
@@ -243,7 +245,7 @@ class Janus(gym.Env):
 
 
 
-# In[26]:
+# In[62]:
 
 
 janus_env = Janus()
@@ -277,7 +279,7 @@ janus_env.close()
 
 # # TD3 training
 
-# In[27]:
+# In[63]:
 
 
 from stable_baselines3 import TD3
@@ -297,67 +299,69 @@ model_janus_td3.learn(total_timesteps=1000, log_interval=4, tb_log_name=model_na
 model_janus_td3.save("./data/"+model_name)
 
 
-# In[28]:
+# In[101]:
 
 
-print(f'model used: {model_name}')
+def use_trained_RL_model():
+    print(f'model used: {model_name}')
 
-model_janus_td3 = TD3("MlpPolicy", janus_env, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
-model_janus_td3.load("./data/"+model_name)
+    model_janus_td3 = TD3("MlpPolicy", janus_env, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+    model_janus_td3.load("./data/"+model_name)
 
-janus_env.reset()
-for i in range(100):
-    action, _ = model_janus_td3.predict(janus_env.current_position)
-    print(f'action {action}')
-    obs, rewards, done, info = janus_env.step(action)
-    janus_env.render()
-    if done: 
-        print(f'done within {i+1} iterations')
-        break
-janus_env.close()
-
-
-# In[29]:
+    janus_env.reset()
+    for i in range(100):
+        action, _ = model_janus_td3.predict(janus_env.current_position)
+        print(f'action {action}')
+        obs, rewards, done, info = janus_env.step(action)
+        janus_env.render()
+        if done: 
+            print(f'done within {i+1} iterations')
+            break
+    janus_env.close()
 
 
-janus_env = Janus()
-check_env(janus_env)
-
-# model_name = "janus partial td3 - reward clown hat"
-print(f'model used: {model_name}')
-model_janus_td3 = TD3("MlpPolicy", janus_env, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
-model_janus_td3.load("./data/"+model_name)
-
-janus_env.reset()
-new_y = janus_env.ml_model.predict(janus_env.convert_to_real_obs(janus_env.current_position,
-                                     janus_env.full_x).values.reshape(1,-1)).reshape(-1)
-print(f'init results:  {new_y} reward {janus_env.continuous_reward_clown_hat(new_y):0.03f} action {janus_env.last_action}')
-
-for i in range(100):
-    action, _ = model_janus_td3.predict(janus_env.current_position)
-#     print(f'action {action}')
-    obs, rewards, done, info = janus_env.step(action)
-#     janus_env.render()
-    if done: 
-        print(f'done within {i+1} iterations')
-        break
-new_y = janus_env.ml_model.predict(janus_env.convert_to_real_obs(janus_env.current_position,
-                                     janus_env.full_x).values.reshape(1,-1)).reshape(-1)
-print(f'new results after {i+1} iterations:  {new_y} associated reward {janus_env.continuous_reward_clown_hat(new_y):0.03f}  action {janus_env.last_action}')
-janus_env.vav_df
+# In[104]:
 
 
-# # plot target
+def use_trained_RL_model_2(idx):
+    janus_env = Janus(idx)
+    check_env(janus_env)
 
-# In[87]:
+    # model_name = "janus partial td3 - reward clown hat"
+    print(f'model used: {model_name}')
+    model_janus_td3 = TD3("MlpPolicy", janus_env, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+    model_janus_td3.load("./data/"+model_name)
+
+    janus_env.reset()
+    new_y = janus_env.ml_model.predict(janus_env.convert_to_real_obs(janus_env.current_position,
+                                         janus_env.full_x).values.reshape(1,-1)).reshape(-1)
+    print(f'init results:  {new_y} reward {janus_env.continuous_reward_clown_hat(new_y):0.03f} action {janus_env.last_action}')
+
+    for i in range(100):
+        action, _ = model_janus_td3.predict(janus_env.current_position)
+    #     print(f'action {action}')
+        obs, rewards, done, info = janus_env.step(action)
+    #     janus_env.render()
+        if done: 
+            print(f'done within {i+1} iterations')
+            break
+    new_y = janus_env.ml_model.predict(janus_env.convert_to_real_obs(janus_env.current_position,
+                                         janus_env.full_x).values.reshape(1,-1)).reshape(-1)
+    print(f'new results after {i+1} iterations:  {new_y} associated reward {janus_env.continuous_reward_clown_hat(new_y):0.03f}  action {janus_env.last_action}')
+    return janus_env.vav_df
 
 
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from PIL import Image
+# In[105]:
 
-# Create figure and axes
-fig, ax = plt.subplots()
+
+use_trained_RL_model_2(2230)
+
+
+# # plot reward functions
+
+# In[66]:
+
+
 janus_env = Janus()
 # print(janus_env.vav_df)
 # print(janus_env.ti)
@@ -372,59 +376,223 @@ sup_limx = max(sup_x, janus_env.y_df.max()[0])
 inf_limy = min(inf_y, janus_env.y_df.min()[1])
 sup_limy = max(sup_y, janus_env.y_df.max()[1])
 
-# Create a Rectangle patch
-rect = patches.Rectangle((inf_x, inf_y), (sup_x-inf_x), (sup_y-inf_y), linewidth=1, color='red', facecolor='none', label='CDC')
-ax.add_patch(rect)
 
-#create VAV point
-plt.scatter(janus_env.vav_df.iloc[0].values[0], janus_env.vav_df.iloc[0].values[1], color='black', label='vav', zorder =2)
+# ## create dataframe with reward values
 
-# Add the patch to the Axes
-plt.xlim([inf_limx-1, sup_limx+1])
-plt.ylim([inf_limy-1, sup_limy+1])
-plt.legend()
-plt.show()
+# In[21]:
 
 
-# In[106]:
+def keep_reward_content(reward=janus_env.continuous_reward_clown_hat, reward_name = 'janus_env.continuous_reward_clown_hat'):
+
+    X = np.arange(inf_limx-3, sup_limx+3, 0.2)
+    Y = np.arange(inf_limy-3, sup_limy+3, 0.2)
+    xyz_content=[]
+    for x in X:
+        for y in Y:
+            xyz_content.append([x, y, reward([x,y])])
+    xyz_content = pd.DataFrame(xyz_content, columns=['x', 'y', 'z'])
+    xyz_content.to_csv('./data/'+reward_name+'.csv')
+        
 
 
-import matplotlib.pyplot as plt
-import numpy as np
-from itertools import product
-
-# Fixing random state for reproducibility
-np.random.seed(19680801)
+# In[22]:
 
 
-def randrange(n, vmin, vmax):
-    """
-    Helper function to make an array of random numbers having shape (n, )
-    with each number distributed Uniform(vmin, vmax).
-    """
-    return (vmax - vmin)*np.random.rand(n) + vmin
+keep_reward_content(janus_env.continuous_reward_clown_hat, 'continuous_reward_clown_hat')
 
-fig = plt.figure()
-ax = fig.add_subplot(projection='3d')
 
-n = 100
+# ## plot reward function
 
-# For each set of style and range settings, plot n random points in the box
-# defined by x in [23, 32], y in [0, 100], z in [zlow, zhigh].
+# In[67]:
 
-X = np.arange(inf_limx, sup_limx, 0.2)
-Y = np.arange(inf_limy, sup_limy, 0.2)
-for x in X:
-    for y in Y:
-        z = janus_env.continuous_reward_clown_hat([x, y])
-        ax.scatter(x, y, z)
+
+import plotly.express as px
+
+xyz_content = pd.read_csv('./data/continuous_reward_clown_hat.csv', index_col=0)
+fig = px.scatter_3d(xyz_content, x='x', y='y', z='z',
+              color='z')
+fig.show()
+
+
+# # visualiser les progrès par RL: qualité avant et après
+
+# In[78]:
+
+
+janus_env = Janus()
+janus_env.reset()
+inf_x = janus_env.ti.iloc[0][0]
+sup_x = janus_env.ts.iloc[0][0]
+inf_y = janus_env.ti.iloc[0][1]
+sup_y = janus_env.ts.iloc[0][1]
+inf_limx = min(inf_x, janus_env.y_df.min()[0])
+sup_limx = max(sup_x, janus_env.y_df.max()[0])
+inf_limy = min(inf_y, janus_env.y_df.min()[1])
+sup_limy = max(sup_y, janus_env.y_df.max()[1])
+vav_x = janus_env.vav_df.iloc[0].values[0]
+vav_y = janus_env.vav_df.iloc[0].values[1]
+
+
+# In[111]:
+
+
+def positionne_point_idx(janus_env, fig):
+    print(f'Index de l observation {janus_env.idx}')
+    current_position = janus_env.revert_to_obs_space(janus_env.full_x.iloc[janus_env.idx].values.reshape(-1), janus_env.full_x)
+    current_position = current_position.astype('float32')
+    current_y = janus_env.ml_model.predict(janus_env.convert_to_real_obs(current_position,
+                                     janus_env.full_x).values.reshape(1,-1)).reshape(-1)
+    print(f'init results:  {current_y} reward {janus_env.continuous_reward_clown_hat(current_y):0.03f} action {janus_env.last_action}')
+    fig.add_trace(go.Scatter(x=[current_y[0]], y=[current_y[1]], name='point initial obs '+str(janus_env.idx)))
+
+    
+    for i in range(100):
+        action, _ = model_janus_td3.predict(janus_env.current_position)
+    #     print(f'action {action}')
+        obs, rewards, done, info = janus_env.step(action)
+    #     janus_env.render()
+        if done: 
+            print(f'done within {i+1} iterations')
+            break
+    new_y = janus_env.ml_model.predict(janus_env.convert_to_real_obs(janus_env.current_position,
+                                         janus_env.full_x).values.reshape(1,-1)).reshape(-1)
+    
+    print(f'final results:  {new_y} reward {janus_env.continuous_reward_clown_hat(new_y):0.03f} action {janus_env.last_action}')
+    fig.add_trace(go.Scatter(x=[new_y[0]], y=[new_y[1]], name='point final obs '+str(janus_env.idx)))
+    
     
 
-ax.set_xlabel('X Label')
-ax.set_ylabel('Y Label')
-ax.set_zlabel('Z Label')
 
-plt.show()
+# In[112]:
+
+
+import plotly.graph_objects as go
+
+
+def visualise_avant_apres(janus_env):
+    fig = go.Figure()
+
+    fig.update_xaxes(title_text='target_0', range=[inf_limx-3, sup_limx+3])
+    fig.update_yaxes(title_text='target_5', range=[inf_limy-3, sup_limy+3])
+
+    fig.add_trace(go.Scatter(x=[inf_x,inf_x,sup_x,sup_x, inf_x, None, vav_x], y=[inf_y,sup_y,sup_y, inf_y, inf_y, None, vav_y], fill="toself", name='TI, TS, VAV'))
+    positionne_point_idx(janus_env, fig)
+    fig.update_layout({'showlegend': True, 'title':'Position de la qualité, avant, après'})
+    fig.show()
+
+
+# # visualiser les reward de toutes les tombées
+
+# ## toutes les tombées (13639)
+
+# In[93]:
+
+
+#13000 tombees
+janus_env.full_x
+#782 tombees MGQA
+janus_env.y_df
+
+full_prediction = janus_env.ml_model.predict(janus_env.full_x)
+full_prediction
+reward_df = pd.DataFrame(full_prediction, columns=['target_0', 'target_5'])
+reward_df
+
+reward_df['reward']=reward_df.apply(lambda x: janus_env.continuous_reward_clown_hat([x[0], x[1]]), axis=1)
+
+
+# In[94]:
+
+
+reward_df
+
+
+# In[95]:
+
+
+import pandas as pd
+pd.options.plotting.backend = "plotly"
+
+fig = reward_df.plot()
+fig.show()
+
+
+# # EXP 6 - IDX 2230
+
+# In[97]:
+
+
+janus_env_2230 = Janus(2230)
+
+
+# In[100]:
+
+
+from stable_baselines3 import TD3
+from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
+import warnings
+warnings.filterwarnings('ignore') 
+
+model_name = "EXP6 - IDX 2230 - reward cont clown"
+
+janus_env_2230 = Janus(2230)
+check_env(janus_env_2230)
+
+n_actions = janus_env_2230.action_space.shape[-1]
+action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
+
+model_janus_td3 = TD3("MlpPolicy", janus_env_2230, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+model_janus_td3.learn(total_timesteps=10000, log_interval=4, tb_log_name=model_name)
+model_janus_td3.save("./data/"+model_name)
+
+
+# In[114]:
+
+
+janus_env_2230 = Janus(2230)
+janus_env_2230.reset()
+print(f'model used: {model_name}')
+model_janus_td3 = TD3("MlpPolicy", janus_env, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+model_janus_td3.load("./data/"+model_name)
+
+
+# In[115]:
+
+
+visualise_avant_apres(janus_env_2230)
+
+
+# # EXP 7 - IDX 11926
+
+# In[116]:
+
+
+from stable_baselines3 import TD3
+from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
+import warnings
+warnings.filterwarnings('ignore') 
+
+model_name = "EXP7 - IDX 11926 - reward cont clown"
+
+idx = 11926
+
+janus = Janus(idx)
+check_env(janus)
+
+n_actions = janus.action_space.shape[-1]
+action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
+
+model_janus_td3 = TD3("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+model_janus_td3.learn(total_timesteps=10000, log_interval=4, tb_log_name=model_name)
+model_janus_td3.save("./data/"+model_name)
+
+
+# In[117]:
+
+
+visualise_avant_apres(janus)
 
 
 # In[ ]:
