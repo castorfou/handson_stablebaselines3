@@ -3,7 +3,7 @@
 
 # # Janus gym environment
 
-# In[96]:
+# In[10]:
 
 
 import gym
@@ -21,7 +21,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn import preprocessing
 from sklearn.datasets import make_regression
-
+import warnings
+warnings.filterwarnings('ignore') 
 import math
 import pickle
 
@@ -197,7 +198,8 @@ class Janus(gym.Env):
         '''
 
         new_y = self.ml_model.predict(observation).reshape(-1)
-        return self.continuous_reward_clown_hat(new_y)
+#         return self.continuous_reward_clown_hat(new_y)
+        return self.reward_archery(new_y)
 
     def discrete_reward(self, new_y):
         ''' Discrete reward '''
@@ -243,9 +245,30 @@ class Janus(gym.Env):
 
         return final_reward
 
+    def reward_archery(self, new_y):
+        ''' Continuous reward '''
+        final_reward = 0 
+        
+        ti_target_0 = self.ti.iloc[:,0].values[0]
+        ts_target_0 = self.ts.iloc[:,0].values[0]
+        ti_target_5 = self.ti.iloc[:,1].values[0]
+        ts_target_5 = self.ts.iloc[:,1].values[0]
+        x, y = new_y[0], new_y[1]
+        if ( (ti_target_0*0.10 <= x <= ts_target_0*0.10) & ( ti_target_5*0.10 <= y <= ts_target_5*0.10 )):
+            reward = 0
+        else:
+            if ( (ti_target_0*0.50 <= x <= ts_target_0*0.50) & ( ti_target_5*0.50 <= y <= ts_target_5*0.50 )):
+                reward = -2
+            else:
+                if ( (ti_target_0 <= x <= ts_target_0) & ( ti_target_5 <= y <= ts_target_5 )):
+                    reward = -5
+                else:
+                    reward = -20
+        final_reward = reward
+        return final_reward
 
 
-# In[62]:
+# In[6]:
 
 
 janus_env = Janus()
@@ -379,7 +402,7 @@ sup_limy = max(sup_y, janus_env.y_df.max()[1])
 
 # ## create dataframe with reward values
 
-# In[21]:
+# In[8]:
 
 
 def keep_reward_content(reward=janus_env.continuous_reward_clown_hat, reward_name = 'janus_env.continuous_reward_clown_hat'):
@@ -403,7 +426,7 @@ keep_reward_content(janus_env.continuous_reward_clown_hat, 'continuous_reward_cl
 
 # ## plot reward function
 
-# In[67]:
+# In[12]:
 
 
 import plotly.express as px
@@ -592,6 +615,182 @@ model_janus_td3.save("./data/"+model_name)
 # In[117]:
 
 
+visualise_avant_apres(janus)
+
+
+# # move to reward archery and plot
+
+# On change de 
+# 
+# ```python
+#     def reward(self, observation):
+#         ''' Discrete reward 
+#         observation if from real world not observation space
+#         '''
+#         new_y = self.ml_model.predict(observation).reshape(-1)
+#         return self.continuous_reward_clown_hat(new_y)
+# ```
+# 
+# à
+# ```python
+#     def reward(self, observation):
+#         ''' Discrete reward 
+#         observation if from real world not observation space
+#         '''
+#         new_y = self.ml_model.predict(observation).reshape(-1)
+#         return self.reward_archery(new_y)
+# ```
+# 
+# 
+
+# In[11]:
+
+
+janus_env = Janus()
+# print(janus_env.vav_df)
+# print(janus_env.ti)
+# print(janus_env.ts)
+
+inf_x = janus_env.ti.iloc[0][0]
+sup_x = janus_env.ts.iloc[0][0]
+inf_y = janus_env.ti.iloc[0][1]
+sup_y = janus_env.ts.iloc[0][1]
+inf_limx = min(inf_x, janus_env.y_df.min()[0])
+sup_limx = max(sup_x, janus_env.y_df.max()[0])
+inf_limy = min(inf_y, janus_env.y_df.min()[1])
+sup_limy = max(sup_y, janus_env.y_df.max()[1])
+
+keep_reward_content(janus_env.reward_archery, 'reward_archery')
+
+import plotly.express as px
+
+xyz_content = pd.read_csv('./data/reward_archery.csv', index_col=0)
+fig = px.scatter_3d(xyz_content, x='x', y='y', z='z',
+              color='z')
+fig.show()
+
+
+# # EXP 8 - archery - IDX  11926
+
+# In[13]:
+
+
+from stable_baselines3 import TD3
+from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
+import warnings
+warnings.filterwarnings('ignore') 
+
+model_name = "EXP8 - IDX 11926 - archery"
+
+idx = 11926
+
+janus = Janus(idx)
+check_env(janus)
+
+n_actions = janus.action_space.shape[-1]
+action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
+
+model_janus_td3 = TD3("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+model_janus_td3.learn(total_timesteps=10000, log_interval=4, tb_log_name=model_name)
+model_janus_td3.save("./data/"+model_name)
+
+
+# visu reward archery toutes les tombées
+
+# In[14]:
+
+
+full_prediction = janus.ml_model.predict(janus.full_x)
+full_prediction
+reward_df = pd.DataFrame(full_prediction, columns=['target_0', 'target_5'])
+reward_df
+
+reward_df['reward_archery']=reward_df.apply(lambda x: janus.reward_archery([x[0], x[1]]), axis=1)
+
+
+# In[16]:
+
+
+reward_df.head()
+
+
+# In[17]:
+
+
+import pandas as pd
+pd.options.plotting.backend = "plotly"
+
+fig = reward_df.plot()
+fig.show()
+
+
+# # Fix notebook duplicated cells
+
+# In[29]:
+
+
+import nbformat as nbf
+from glob import glob
+
+import uuid
+def get_cell_id(id_length=8):
+    return uuid.uuid4().hex[:id_length]
+
+# your notebook name/keyword
+nb_name = '03 - partial environnement for dataset S.ipynb'
+notebooks = list(filter(lambda x: nb_name in x, glob("./*.ipynb", recursive=True)))
+
+# iterate over notebooks
+for ipath in sorted(notebooks):
+    # load notebook
+    ntbk = nbf.read(ipath, nbf.NO_CONVERT)
+    
+    cell_ids = []
+    for cell in ntbk.cells:
+        cell_ids.append(cell['id'])
+
+    # reset cell ids if there are duplicates
+    if not len(cell_ids) == len(set(cell_ids)): 
+        for cell in ntbk.cells:
+            cell['id'] = get_cell_id()
+
+    nbf.write(ntbk, ipath)
+
+
+# # EXP 9 - archery - IDX 1926
+
+# In[30]:
+
+
+from stable_baselines3 import TD3
+from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
+import warnings
+warnings.filterwarnings('ignore') 
+
+model_name = "EXP9 - IDX 1926 - archery"
+
+idx = 1926
+
+janus = Janus(idx)
+check_env(janus)
+
+n_actions = janus.action_space.shape[-1]
+action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
+
+model_janus_td3 = TD3("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+model_janus_td3.learn(total_timesteps=10000, log_interval=4, tb_log_name=model_name)
+model_janus_td3.save("./data/"+model_name)
+
+
+# In[32]:
+
+
+idx = 1926
+
+janus = Janus(idx)
+janus.reset()
 visualise_avant_apres(janus)
 
 
