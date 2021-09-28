@@ -3,7 +3,7 @@
 
 # # Janus gym environment
 
-# In[10]:
+# In[26]:
 
 
 import gym
@@ -199,7 +199,7 @@ class Janus(gym.Env):
 
         new_y = self.ml_model.predict(observation).reshape(-1)
 #         return self.continuous_reward_clown_hat(new_y)
-        return self.reward_archery(new_y)
+        return self.reward_smart_archery(new_y)
 
     def discrete_reward(self, new_y):
         ''' Discrete reward '''
@@ -246,7 +246,9 @@ class Janus(gym.Env):
         return final_reward
 
     def reward_archery(self, new_y):
-        ''' Continuous reward '''
+        ''' Discrete reward 
+        drawback is that you need progress on all targets to get reward improvment
+        '''
         final_reward = 0 
         
         ti_target_0 = self.ti.iloc[:,0].values[0]
@@ -267,8 +269,29 @@ class Janus(gym.Env):
         final_reward = reward
         return final_reward
 
+    def reward_smart_archery(self, new_y):
+        ''' Discrete reward '''
+        ti_target_0 = self.ti.iloc[:,0].values[0]
+        ts_target_0 = self.ts.iloc[:,0].values[0]
+        ti_target_5 = self.ti.iloc[:,1].values[0]
+        ts_target_5 = self.ts.iloc[:,1].values[0]
+        x, y = new_y[0], new_y[1]
+        
+        reward_x = 0
+        if (x <= ti_target_0 or x >= ts_target_0): reward_x = -10
+        if ( ti_target_0 <= x <= 0.5*ti_target_0  or 0.5*ts_target_0 <= x <= ts_target_0  ): reward_x = -3
+        if ( 0.5*ti_target_0 <= x <= 0.1*ti_target_0  or 0.1*ts_target_0 <= x <= 0.5*ts_target_0  ): reward_x = -1
+        reward_y = 0
+        if (y <= ti_target_5 or y >= ts_target_5): reward_y = -10
+        if ( ti_target_5 <= y <= 0.5*ti_target_5  or 0.5*ts_target_5 <= y <= ts_target_5  ): reward_y = -3
+        if ( 0.5*ti_target_5 <= y <= 0.1*ti_target_5  or 0.1*ts_target_5 <= y <= 0.5*ts_target_5  ): reward_y = -1
+                    
+        final_reward = reward_x + reward_y
+        return final_reward
+    
 
-# In[6]:
+
+# In[2]:
 
 
 janus_env = Janus()
@@ -382,7 +405,7 @@ use_trained_RL_model_2(2230)
 
 # # plot reward functions
 
-# In[66]:
+# In[3]:
 
 
 janus_env = Janus()
@@ -400,7 +423,7 @@ inf_limy = min(inf_y, janus_env.y_df.min()[1])
 sup_limy = max(sup_y, janus_env.y_df.max()[1])
 
 
-# ## create dataframe with reward values
+# ## keep reward content
 
 # In[8]:
 
@@ -418,28 +441,46 @@ def keep_reward_content(reward=janus_env.continuous_reward_clown_hat, reward_nam
         
 
 
-# In[22]:
-
-
-keep_reward_content(janus_env.continuous_reward_clown_hat, 'continuous_reward_clown_hat')
-
-
-# ## plot reward function
+# ## create dataframe with reward values
 
 # In[12]:
 
 
+keep_reward_content(janus_env.continuous_reward_clown_hat, 'reward_clown_hat')
+
+
+# ## plot reward function
+
+# In[18]:
+
+
 import plotly.express as px
 
-xyz_content = pd.read_csv('./data/continuous_reward_clown_hat.csv', index_col=0)
+xyz_content = pd.read_csv('./data/reward_clown_hat.csv', index_col=0)
 fig = px.scatter_3d(xyz_content, x='x', y='y', z='z',
               color='z')
 fig.show()
 
 
+# ## reward distribution
+
+# In[29]:
+
+
+import plotly.express as px
+fig = px.histogram(reward_df, x="reward_clown_hat")
+fig.show()
+
+
+# In[ ]:
+
+
+
+
+
 # # visualiser les progrès par RL: qualité avant et après
 
-# In[78]:
+# In[34]:
 
 
 janus_env = Janus()
@@ -454,10 +495,6 @@ inf_limy = min(inf_y, janus_env.y_df.min()[1])
 sup_limy = max(sup_y, janus_env.y_df.max()[1])
 vav_x = janus_env.vav_df.iloc[0].values[0]
 vav_y = janus_env.vav_df.iloc[0].values[1]
-
-
-# In[111]:
-
 
 def positionne_point_idx(janus_env, fig):
     print(f'Index de l observation {janus_env.idx}')
@@ -485,10 +522,6 @@ def positionne_point_idx(janus_env, fig):
     
     
 
-
-# In[112]:
-
-
 import plotly.graph_objects as go
 
 
@@ -508,7 +541,7 @@ def visualise_avant_apres(janus_env):
 
 # ## toutes les tombées (13639)
 
-# In[93]:
+# In[14]:
 
 
 #13000 tombees
@@ -521,22 +554,36 @@ full_prediction
 reward_df = pd.DataFrame(full_prediction, columns=['target_0', 'target_5'])
 reward_df
 
-reward_df['reward']=reward_df.apply(lambda x: janus_env.continuous_reward_clown_hat([x[0], x[1]]), axis=1)
+reward_df['reward_clown_hat']=reward_df.apply(lambda x: janus_env.continuous_reward_clown_hat([x[0], x[1]]), axis=1)
 
 
-# In[94]:
+# In[15]:
 
 
-reward_df
+reward_df.to_csv('./data/full_x_clown_hat.csv')
+
+reward_df.head()
 
 
-# In[95]:
+# In[24]:
 
 
 import pandas as pd
 pd.options.plotting.backend = "plotly"
 
+reward_df=pd.read_csv('./data/full_x_clown_hat.csv', index_col=0)
+
 fig = reward_df.plot()
+fig.show()
+
+
+# ## reward distribution
+
+# In[27]:
+
+
+import plotly.express as px
+fig = px.histogram(reward_df, x="reward_clown_hat")
 fig.show()
 
 
@@ -643,7 +690,7 @@ visualise_avant_apres(janus)
 # 
 # 
 
-# In[11]:
+# In[ ]:
 
 
 janus_env = Janus()
@@ -662,11 +709,65 @@ sup_limy = max(sup_y, janus_env.y_df.max()[1])
 
 keep_reward_content(janus_env.reward_archery, 'reward_archery')
 
+
+# ## plot reward archery function
+
+# In[17]:
+
+
 import plotly.express as px
 
 xyz_content = pd.read_csv('./data/reward_archery.csv', index_col=0)
 fig = px.scatter_3d(xyz_content, x='x', y='y', z='z',
               color='z')
+fig.show()
+
+
+# ## plot reward archery applied to all our drop outs
+
+# In[19]:
+
+
+#13000 tombees
+janus_env.full_x
+#782 tombees MGQA
+janus_env.y_df
+
+full_prediction = janus_env.ml_model.predict(janus_env.full_x)
+full_prediction
+reward_df = pd.DataFrame(full_prediction, columns=['target_0', 'target_5'])
+reward_df
+
+reward_df['reward_archery']=reward_df.apply(lambda x: janus_env.reward_archery([x[0], x[1]]), axis=1)
+
+
+# In[20]:
+
+
+reward_df.to_csv('./data/full_x_archery.csv')
+
+reward_df.head()
+
+
+# In[15]:
+
+
+import pandas as pd
+pd.options.plotting.backend = "plotly"
+
+reward_df=pd.read_csv('./data/full_x_archery.csv', index_col=0)
+
+fig = reward_df.plot()
+fig.show()
+
+
+# ## reward distribution
+
+# In[17]:
+
+
+import plotly.express as px
+fig = px.histogram(reward_df, x="reward_archery")
 fig.show()
 
 
@@ -791,6 +892,246 @@ idx = 1926
 
 janus = Janus(idx)
 janus.reset()
+visualise_avant_apres(janus)
+
+
+# # move to reward archery and plot
+
+# On change de 
+# 
+# ```python
+#     def reward(self, observation):
+#         ''' Discrete reward 
+#         observation if from real world not observation space
+#         '''
+#         new_y = self.ml_model.predict(observation).reshape(-1)
+#         return self.continuous_reward_clown_hat(new_y)
+# ```
+# 
+# à
+# ```python
+#     def reward(self, observation):
+#         ''' Discrete reward 
+#         observation if from real world not observation space
+#         '''
+#         new_y = self.ml_model.predict(observation).reshape(-1)
+#         return self.reward_archery(new_y)
+# ```
+# 
+# 
+
+# In[ ]:
+
+
+janus_env = Janus()
+# print(janus_env.vav_df)
+# print(janus_env.ti)
+# print(janus_env.ts)
+
+inf_x = janus_env.ti.iloc[0][0]
+sup_x = janus_env.ts.iloc[0][0]
+inf_y = janus_env.ti.iloc[0][1]
+sup_y = janus_env.ts.iloc[0][1]
+inf_limx = min(inf_x, janus_env.y_df.min()[0])
+sup_limx = max(sup_x, janus_env.y_df.max()[0])
+inf_limy = min(inf_y, janus_env.y_df.min()[1])
+sup_limy = max(sup_y, janus_env.y_df.max()[1])
+
+keep_reward_content(janus_env.reward_archery, 'reward_archery')
+
+
+# ## plot reward archery function
+
+# In[28]:
+
+
+import plotly.express as px
+
+xyz_content = pd.read_csv('./data/reward_archery.csv', index_col=0)
+fig = px.scatter_3d(xyz_content, x='x', y='y', z='z',
+              color='z')
+fig.show()
+
+
+# ## plot reward archery applied to all our drop outs
+
+# In[19]:
+
+
+#13000 tombees
+janus_env.full_x
+#782 tombees MGQA
+janus_env.y_df
+
+full_prediction = janus_env.ml_model.predict(janus_env.full_x)
+full_prediction
+reward_df = pd.DataFrame(full_prediction, columns=['target_0', 'target_5'])
+reward_df
+
+reward_df['reward_archery']=reward_df.apply(lambda x: janus_env.reward_archery([x[0], x[1]]), axis=1)
+
+
+# In[20]:
+
+
+reward_df.to_csv('./data/full_x_archery.csv')
+
+reward_df.head()
+
+
+# In[1]:
+
+
+import pandas as pd
+pd.options.plotting.backend = "plotly"
+
+reward_df=pd.read_csv('./data/full_x_archery.csv', index_col=0)
+
+fig = reward_df.plot()
+fig.show()
+
+
+# # move to reward archery and plot
+
+# On change de 
+# 
+# ```python
+#     def reward(self, observation):
+#         ''' Discrete reward 
+#         observation if from real world not observation space
+#         '''
+#         new_y = self.ml_model.predict(observation).reshape(-1)
+#         return self.reward_archery(new_y)
+# ```
+# 
+# à
+# ```python
+#     def reward(self, observation):
+#         ''' Discrete reward 
+#         observation if from real world not observation space
+#         '''
+#         new_y = self.ml_model.predict(observation).reshape(-1)
+#         return self.reward_smart_archery(new_y)
+# ```
+# 
+# 
+
+# In[9]:
+
+
+janus_env = Janus()
+# print(janus_env.vav_df)
+# print(janus_env.ti)
+# print(janus_env.ts)
+
+inf_x = janus_env.ti.iloc[0][0]
+sup_x = janus_env.ts.iloc[0][0]
+inf_y = janus_env.ti.iloc[0][1]
+sup_y = janus_env.ts.iloc[0][1]
+inf_limx = min(inf_x, janus_env.y_df.min()[0])
+sup_limx = max(sup_x, janus_env.y_df.max()[0])
+inf_limy = min(inf_y, janus_env.y_df.min()[1])
+sup_limy = max(sup_y, janus_env.y_df.max()[1])
+
+keep_reward_content(janus_env.reward_smart_archery, 'reward_smart_archery')
+
+
+# ## plot reward archery function
+
+# In[10]:
+
+
+import plotly.express as px
+import pandas as pd
+xyz_content = pd.read_csv('./data/reward_smart_archery.csv', index_col=0)
+fig = px.scatter_3d(xyz_content, x='x', y='y', z='z',
+              color='z')
+fig.show()
+
+
+# ## plot reward archery applied to all our drop outs
+
+# In[11]:
+
+
+#13000 tombees
+janus_env.full_x
+#782 tombees MGQA
+janus_env.y_df
+
+full_prediction = janus_env.ml_model.predict(janus_env.full_x)
+full_prediction
+reward_df = pd.DataFrame(full_prediction, columns=['target_0', 'target_5'])
+reward_df
+
+reward_df['reward_smart_archery']=reward_df.apply(lambda x: janus_env.reward_smart_archery([x[0], x[1]]), axis=1)
+
+
+# In[12]:
+
+
+reward_df.to_csv('./data/full_x_smart_archery.csv')
+
+reward_df.head()
+
+
+# In[30]:
+
+
+import pandas as pd
+pd.options.plotting.backend = "plotly"
+
+reward_df=pd.read_csv('./data/full_x_smart_archery.csv', index_col=0)
+
+fig = reward_df.plot()
+fig.show()
+
+
+# ## reward distribution
+
+# In[14]:
+
+
+import plotly.express as px
+fig = px.histogram(reward_df, x="reward_smart_archery")
+fig.show()
+
+
+# In[31]:
+
+
+reward_df[reward_df['reward_smart_archery']==-13]
+
+
+# # EXP 10 - smart archery - IDX 11927
+
+# In[32]:
+
+
+from stable_baselines3 import TD3
+from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
+import warnings
+warnings.filterwarnings('ignore') 
+
+model_name = "EXP10 - IDX 11927 - smart archery"
+
+idx = 11927
+
+janus = Janus(idx)
+check_env(janus)
+
+n_actions = janus.action_space.shape[-1]
+action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
+
+model_janus_td3 = TD3("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+model_janus_td3.learn(total_timesteps=10000, log_interval=4, tb_log_name=model_name)
+model_janus_td3.save("./data/"+model_name)
+
+
+# In[35]:
+
+
 visualise_avant_apres(janus)
 
 
