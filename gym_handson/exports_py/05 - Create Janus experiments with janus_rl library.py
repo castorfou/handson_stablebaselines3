@@ -3,7 +3,7 @@
 
 # # load janus_rl library
 
-# In[7]:
+# In[4]:
 
 
 get_ipython().run_line_magic('load_ext', 'autoreload')
@@ -66,7 +66,7 @@ visualise_avant_apres(12, 7547, 'archery')
 
 # # plot all dropout points on this target square
 
-# In[61]:
+# In[8]:
 
 
 reward_name = 'clown_hat'
@@ -101,7 +101,7 @@ fig.update_layout({'showlegend': True, 'title':'Positions qualité distribution 
 fig.show()
 
 
-# In[84]:
+# In[9]:
 
 
 import plotly.graph_objects as go
@@ -142,6 +142,24 @@ fig = go.Figure(
     frames=frame
     )
 
+fig.show()
+
+
+# In[27]:
+
+
+import plotly.express as px
+reward_df_index = reward_df.reset_index()
+
+
+
+fig = px.scatter(reward_df_index, x="target_0", y="target_5",
+            color="reward_clown_hat", animation_frame="index", 
+           range_x=[-6, 6],
+           range_y=[-6, 6]
+           
+          )
+fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = 10
 fig.show()
 
 

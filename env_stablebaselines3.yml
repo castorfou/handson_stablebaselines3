@@ -9,5 +9,7 @@ dependencies:
   - cudatoolkit=11.0
   - torchaudio==0.7.2
   - torchvision==0.8.2
-  - conda-forge::fire
+  - fire
+  - sympy
+  - pdoc3
 prefix: /home/explore/miniconda3/envs/stablebaselines3

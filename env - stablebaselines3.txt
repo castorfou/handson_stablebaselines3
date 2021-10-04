@@ -12,3 +12,6 @@ pip install box2d-py
 pip install yapf
 pip install -U scikit-learn
 pip install pickle4
+pip install plotly
+conda install pdoc3
+conda install -c conda-forge fire
