@@ -3,7 +3,7 @@
 
 # ## Export as a module and generate documentation
 
-# In[4]:
+# In[14]:
 
 
 #code from Jeremy Howard (fastai v2)
@@ -18,7 +18,7 @@ get_ipython().system('pdoc --html --output-dir exp/html --force exp/$library_nam
 
 # # Janus gym environment
 
-# In[1]:
+# In[13]:
 
 
 #export
@@ -126,7 +126,7 @@ class Janus(gym.Env):
         
         self.idx=idx
         
-        assert reward_function in ['clown_hat', 'archery', 'smart_archery'], reward_function
+        assert reward_function in ['clown_hat', 'archery', 'smart_archery', 'smart_clown_hat'], reward_function
         self.reward_function = reward_function
         print(f'Active reward function {self.reward_function}')
 
@@ -268,6 +268,33 @@ class Janus(gym.Env):
                 else:
                     reward = 1-(self.vav_df.iloc[:,i].values[0]-new_y[i])/(self.vav_df.iloc[:,i].values[0]-self.ti.iloc[:,i].values[0])
             reward += -1
+            final_reward+=reward
+    #         print(f'reward {reward} final_reward {final_reward} i {i}')
+
+        if (final_reward>0.7*len(new_y)):
+            on_target = True
+    #         print('On Target : ', new_y)
+
+        return final_reward
+    
+    def reward_smart_clown_hat(self, new_y):
+        ''' smart clown_hat reward '''
+        final_reward = 0 
+
+        for i in range(len(new_y)):
+            y = new_y[i]
+            li = self.ti.iloc[:,i].values[0]
+            ls = self.ts.iloc[:,i].values[0]
+            vav = self.vav_df.iloc[:,i].values[0]
+
+            if (y < li):
+                reward = (y-li)/(vav-li)-10
+            if ( vav <=  y <= ls):
+                reward = -(y-vav)/(ls-vav)
+            if ( li <=  y <= vav):
+                reward = -(vav-y)/(vav-li)
+            if (y > ls):
+                reward = (ls-y)/(ls-vav)-10
             final_reward+=reward
     #         print(f'reward {reward} final_reward {final_reward} i {i}')
 
@@ -438,7 +465,7 @@ load_RL_model(11, 2230, 'clown_hat')
 
 # ## calculate reward outputs
 
-# In[37]:
+# In[5]:
 
 
 #export
@@ -479,9 +506,15 @@ def calculate_reward_outputs(reward=janus_env.reward_clown_hat, reward_name = 'c
 calculate_reward_outputs(janus_env.continuous_reward_clown_hat, 'clown_hat')
 
 
+# In[6]:
+
+
+calculate_reward_outputs(janus_env.reward_smart_clown_hat, 'smart_clown_hat')
+
+
 # ## plot reward
 
-# In[4]:
+# In[2]:
 
 
 #export
@@ -519,11 +552,17 @@ plot_reward('archery')
 plot_reward('smart_archery')
 
 
+# In[7]:
+
+
+plot_reward('smart_clown_hat')
+
+
 # # Apply reward to all dropouts
 
 # ## calculate reward for all dropouts
 
-# In[40]:
+# In[8]:
 
 
 #export
@@ -550,6 +589,12 @@ def calculate_reward_dropouts(reward=janus_env.reward_clown_hat, reward_name = '
 calculate_reward_dropouts(janus_env.reward_clown_hat, 'clown_hat')
 
 
+# In[9]:
+
+
+calculate_reward_dropouts(janus_env.reward_smart_clown_hat, 'smart_clown_hat')
+
+
 # ## plot reward applied to all dropouts
 
 # In[76]:
@@ -572,7 +617,7 @@ fig = px.histogram(reward_df, x="reward_clown_hat", color_discrete_sequence=[px.
 fig.show()
 
 
-# In[52]:
+# In[10]:
 
 
 #export 
@@ -620,6 +665,12 @@ plot_reward_of_dropouts('archery')
 
 
 plot_reward_of_dropouts('smart_archery')
+
+
+# In[11]:
+
+
+plot_reward_of_dropouts('smart_clown_hat')
 
 
 # # Visualize progress for a given dropout

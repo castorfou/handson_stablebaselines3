@@ -136,7 +136,7 @@ class Janus(gym.Env):
 
         self.idx=idx
 
-        assert reward_function in [&#39;clown_hat&#39;, &#39;archery&#39;, &#39;smart_archery&#39;], reward_function
+        assert reward_function in [&#39;clown_hat&#39;, &#39;archery&#39;, &#39;smart_archery&#39;, &#39;smart_clown_hat&#39;], reward_function
         self.reward_function = reward_function
         print(f&#39;Active reward function {self.reward_function}&#39;)
 
@@ -278,6 +278,33 @@ class Janus(gym.Env):
                 else:
                     reward = 1-(self.vav_df.iloc[:,i].values[0]-new_y[i])/(self.vav_df.iloc[:,i].values[0]-self.ti.iloc[:,i].values[0])
             reward += -1
+            final_reward+=reward
+    #         print(f&#39;reward {reward} final_reward {final_reward} i {i}&#39;)
+
+        if (final_reward&gt;0.7*len(new_y)):
+            on_target = True
+    #         print(&#39;On Target : &#39;, new_y)
+
+        return final_reward
+
+    def reward_smart_clown_hat(self, new_y):
+        &#39;&#39;&#39; smart clown_hat reward &#39;&#39;&#39;
+        final_reward = 0
+
+        for i in range(len(new_y)):
+            y = new_y[i]
+            li = self.ti.iloc[:,i].values[0]
+            ls = self.ts.iloc[:,i].values[0]
+            vav = self.vav_df.iloc[:,i].values[0]
+
+            if (y &lt; li):
+                reward = (y-li)/(vav-li)-10
+            if ( vav &lt;=  y &lt;= ls):
+                reward = -(y-vav)/(ls-vav)
+            if ( li &lt;=  y &lt;= vav):
+                reward = -(vav-y)/(vav-li)
+            if (y &gt; ls):
+                reward = (ls-y)/(ls-vav)-10
             final_reward+=reward
     #         print(f&#39;reward {reward} final_reward {final_reward} i {i}&#39;)
 
@@ -923,7 +950,7 @@ nbr_action: nb of dimension for action space</p></div>
 
         self.idx=idx
 
-        assert reward_function in [&#39;clown_hat&#39;, &#39;archery&#39;, &#39;smart_archery&#39;], reward_function
+        assert reward_function in [&#39;clown_hat&#39;, &#39;archery&#39;, &#39;smart_archery&#39;, &#39;smart_clown_hat&#39;], reward_function
         self.reward_function = reward_function
         print(f&#39;Active reward function {self.reward_function}&#39;)
 
@@ -1065,6 +1092,33 @@ nbr_action: nb of dimension for action space</p></div>
                 else:
                     reward = 1-(self.vav_df.iloc[:,i].values[0]-new_y[i])/(self.vav_df.iloc[:,i].values[0]-self.ti.iloc[:,i].values[0])
             reward += -1
+            final_reward+=reward
+    #         print(f&#39;reward {reward} final_reward {final_reward} i {i}&#39;)
+
+        if (final_reward&gt;0.7*len(new_y)):
+            on_target = True
+    #         print(&#39;On Target : &#39;, new_y)
+
+        return final_reward
+
+    def reward_smart_clown_hat(self, new_y):
+        &#39;&#39;&#39; smart clown_hat reward &#39;&#39;&#39;
+        final_reward = 0
+
+        for i in range(len(new_y)):
+            y = new_y[i]
+            li = self.ti.iloc[:,i].values[0]
+            ls = self.ts.iloc[:,i].values[0]
+            vav = self.vav_df.iloc[:,i].values[0]
+
+            if (y &lt; li):
+                reward = (y-li)/(vav-li)-10
+            if ( vav &lt;=  y &lt;= ls):
+                reward = -(y-vav)/(ls-vav)
+            if ( li &lt;=  y &lt;= vav):
+                reward = -(vav-y)/(vav-li)
+            if (y &gt; ls):
+                reward = (ls-y)/(ls-vav)-10
             final_reward+=reward
     #         print(f&#39;reward {reward} final_reward {final_reward} i {i}&#39;)
 
@@ -1433,6 +1487,43 @@ drawback is that you need progress on all targets to get reward improvment</p></
     return final_reward</code></pre>
 </details>
 </dd>
+<dt id="janus_rl.Janus.reward_smart_clown_hat"><code class="name flex">
+<span>def <span class="ident">reward_smart_clown_hat</span></span>(<span>self, new_y)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>smart clown_hat reward</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def reward_smart_clown_hat(self, new_y):
+    &#39;&#39;&#39; smart clown_hat reward &#39;&#39;&#39;
+    final_reward = 0
+
+    for i in range(len(new_y)):
+        y = new_y[i]
+        li = self.ti.iloc[:,i].values[0]
+        ls = self.ts.iloc[:,i].values[0]
+        vav = self.vav_df.iloc[:,i].values[0]
+
+        if (y &lt; li):
+            reward = (y-li)/(vav-li)-10
+        if ( vav &lt;=  y &lt;= ls):
+            reward = -(y-vav)/(ls-vav)
+        if ( li &lt;=  y &lt;= vav):
+            reward = -(vav-y)/(vav-li)
+        if (y &gt; ls):
+            reward = (ls-y)/(ls-vav)-10
+        final_reward+=reward
+#         print(f&#39;reward {reward} final_reward {final_reward} i {i}&#39;)
+
+    if (final_reward&gt;0.7*len(new_y)):
+        on_target = True
+#         print(&#39;On Target : &#39;, new_y)
+
+    return final_reward</code></pre>
+</details>
+</dd>
 <dt id="janus_rl.Janus.step"><code class="name flex">
 <span>def <span class="ident">step</span></span>(<span>self, action)</span>
 </code></dt>
@@ -1528,6 +1619,7 @@ info (dict): contains auxiliary diagnostic information (helpful for debugging, a
 <li><code><a title="janus_rl.Janus.reward_archery" href="#janus_rl.Janus.reward_archery">reward_archery</a></code></li>
 <li><code><a title="janus_rl.Janus.reward_clown_hat" href="#janus_rl.Janus.reward_clown_hat">reward_clown_hat</a></code></li>
 <li><code><a title="janus_rl.Janus.reward_smart_archery" href="#janus_rl.Janus.reward_smart_archery">reward_smart_archery</a></code></li>
+<li><code><a title="janus_rl.Janus.reward_smart_clown_hat" href="#janus_rl.Janus.reward_smart_clown_hat">reward_smart_clown_hat</a></code></li>
 <li><code><a title="janus_rl.Janus.step" href="#janus_rl.Janus.step">step</a></code></li>
 <li><code><a title="janus_rl.Janus.template_filename" href="#janus_rl.Janus.template_filename">template_filename</a></code></li>
 </ul>

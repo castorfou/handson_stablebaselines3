@@ -109,7 +109,7 @@ class Janus(gym.Env):
 
         self.idx=idx
 
-        assert reward_function in ['clown_hat', 'archery', 'smart_archery'], reward_function
+        assert reward_function in ['clown_hat', 'archery', 'smart_archery', 'smart_clown_hat'], reward_function
         self.reward_function = reward_function
         print(f'Active reward function {self.reward_function}')
 
@@ -251,6 +251,33 @@ class Janus(gym.Env):
                 else:
                     reward = 1-(self.vav_df.iloc[:,i].values[0]-new_y[i])/(self.vav_df.iloc[:,i].values[0]-self.ti.iloc[:,i].values[0])
             reward += -1
+            final_reward+=reward
+    #         print(f'reward {reward} final_reward {final_reward} i {i}')
+
+        if (final_reward>0.7*len(new_y)):
+            on_target = True
+    #         print('On Target : ', new_y)
+
+        return final_reward
+
+    def reward_smart_clown_hat(self, new_y):
+        ''' smart clown_hat reward '''
+        final_reward = 0
+
+        for i in range(len(new_y)):
+            y = new_y[i]
+            li = self.ti.iloc[:,i].values[0]
+            ls = self.ts.iloc[:,i].values[0]
+            vav = self.vav_df.iloc[:,i].values[0]
+
+            if (y < li):
+                reward = (y-li)/(vav-li)-10
+            if ( vav <=  y <= ls):
+                reward = -(y-vav)/(ls-vav)
+            if ( li <=  y <= vav):
+                reward = -(vav-y)/(vav-li)
+            if (y > ls):
+                reward = (ls-y)/(ls-vav)-10
             final_reward+=reward
     #         print(f'reward {reward} final_reward {final_reward} i {i}')
 
