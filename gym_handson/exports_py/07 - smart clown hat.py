@@ -121,13 +121,13 @@ plot_reward_of_dropouts('smart_clown_hat')
 
 # # EXP 15 - IDX 2503 - smart_clown_hat
 
-# In[22]:
+# In[3]:
 
 
 train_RL_model(15, 2503, 'smart_clown_hat', 6)
 
 
-# In[23]:
+# In[4]:
 
 
 visualise_avant_apres(15,2503, 'smart_clown_hat', 6)
