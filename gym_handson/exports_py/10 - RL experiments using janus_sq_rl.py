@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[13]:
 
 
 get_ipython().run_line_magic('load_ext', 'autoreload')
@@ -70,6 +70,42 @@ idx = [47, 2230, 11926]
 for exp, index in enumerate(idx):
     print(exp+18, index)
     visualise_avant_apres(exp+18, index, 'smart_clown_hat', 6)
+
+
+# # DDPG vs TD3 - exp 21-22
+
+# In[17]:
+
+
+algo = ['DDPG', 'TD3']
+for exp, algo in enumerate(algo):
+    print(exp+21, algo)
+    train_RL_model(exp+21, 2230, 'smart_clown_hat', nb_actions=6, rl_algo=algo)
+
+    
+
+
+# In[19]:
+
+
+algo = ['DDPG', 'TD3']
+for exp, algo in enumerate(algo):
+    print(exp+21, algo)
+    visualise_avant_apres(exp+21, 2230, 'smart_clown_hat', nb_actions=6, rl_algo=algo)
+
+
+# # EXP 23 - 50000 timesteps
+
+# In[21]:
+
+
+train_RL_model(23, 2230, 'smart_clown_hat', nb_actions=6, rl_algo='DDPG', total_timesteps=50000)
+
+
+# In[23]:
+
+
+visualise_avant_apres(23, 2230, 'smart_clown_hat', nb_actions=6, rl_algo='DDPG')
 
 
 # In[ ]:

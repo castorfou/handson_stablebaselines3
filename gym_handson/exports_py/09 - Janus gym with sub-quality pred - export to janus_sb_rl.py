@@ -3,7 +3,7 @@
 
 # ## Export as a module and generate documentation
 
-# In[139]:
+# In[151]:
 
 
 #code from Jeremy Howard (fastai v2)
@@ -18,7 +18,7 @@ get_ipython().system('pdoc --html --output-dir exp/html --force exp/$library_nam
 
 # # Janus gym environment
 
-# In[136]:
+# In[143]:
 
 
 #export
@@ -136,7 +136,7 @@ class Janus(gym.Env):
         
         self.idx=idx
         
-        assert reward_function in ['clown_hat', 'archery', 'smart_archery', 'smart_clown_hat'], reward_function
+        assert reward_function in ['clown_hat', 'archery', 'smart_archery', 'smart_clown_hat'], reward_function+" not in 'clown_hat', 'archery', 'smart_archery', 'smart_clown_hat'"
         self.reward_function = reward_function
         print(f'Active reward function {self.reward_function}')
 
@@ -389,17 +389,17 @@ check_env(janus_env)
 
 # # Train RL model
 
-# In[4]:
+# In[149]:
 
 
 #export
 
-from stable_baselines3 import TD3
+from stable_baselines3 import TD3, DDPG
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 import warnings
 warnings.filterwarnings('ignore') 
 
-def train_RL_model(exp_number, idx, reward_name, nb_actions=4):
+def train_RL_model(exp_number, idx, reward_name, nb_actions=4, rl_algo = 'TD3', total_timesteps=10000):
     '''
     train a TD3 model with OrnsteinUhlenbeckActionNoise
     10000 timesteps
@@ -408,6 +408,7 @@ def train_RL_model(exp_number, idx, reward_name, nb_actions=4):
     
     example: train_RL_model(11, 2230, 'clown_hat')
     '''
+    assert rl_algo in ['TD3', 'DDPG'], "only 'TD3', 'DDPG' are supported, "+str(rl_algo)+" used"
     janus = Janus(idx, reward_name, nb_actions)
     check_env(janus)
     
@@ -415,10 +416,14 @@ def train_RL_model(exp_number, idx, reward_name, nb_actions=4):
     n_actions = janus.action_space.shape[-1]
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
-
-    model_janus_td3 = TD3("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
-    model_janus_td3.learn(total_timesteps=10000, log_interval=4, tb_log_name=model_name)
-    model_janus_td3.save("./data/"+model_name)    
+    
+    if rl_algo == 'TD3':
+        model_janus = TD3("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+    if rl_algo == 'DDPG':
+        model_janus = DDPG("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+    model_janus = TD3("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+    model_janus.learn(total_timesteps=total_timesteps, log_interval=4, tb_log_name=model_name)
+    model_janus.save("./data/"+model_name)    
     
 
 
@@ -430,18 +435,19 @@ train_RL_model(11, 2230, 'clown_hat')
 
 # # Load RL model
 
-# In[1]:
+# In[145]:
 
 
 #export
 from stable_baselines3 import TD3
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 
-def load_RL_model(exp_number, idx, reward_name):
+def load_RL_model(exp_number, idx, reward_name, rl_algo = 'TD3'):
     '''
     load a pre-trained TD3 model with OrnsteinUhlenbeckActionNoise
     from data/EXP$exp_number$ - IDX$idx - $reward_name
     '''
+    assert rl_algo in ['TD3', 'DDPG'], "only 'TD3', 'DDPG' are supported, "+str(rl_algo)+" used"
     janus = Janus(idx, reward_name)
     check_env(janus)
     janus.reset()
@@ -452,16 +458,22 @@ def load_RL_model(exp_number, idx, reward_name):
     n_actions = janus.action_space.shape[-1]
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
-    model_janus_td3 = TD3("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
-    model_janus_td3.load("./data/"+model_name)
     
-    return model_janus_td3
+    if rl_algo == 'TD3':
+        model_janus = TD3("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+    if rl_algo == 'DDPG':
+        model_janus = DDPG("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+    
+    model_janus.load("./data/"+model_name)
+    
+    return model_janus
 
-def load_RL_model(exp_number, idx, reward_name, nb_actions):
+def load_RL_model(exp_number, idx, reward_name, nb_actions, rl_algo = 'TD3'):
     '''
     load a pre-trained TD3 model with OrnsteinUhlenbeckActionNoise
     from data/EXP$exp_number$ - IDX$idx - $reward_name - $nb_actions actions
     '''
+    assert rl_algo in ['TD3', 'DDPG'], "only 'TD3', 'DDPG' are supported, "+rl_algo+" used"
     janus = Janus(idx, reward_name, nb_actions)
     check_env(janus)
     janus.reset()
@@ -472,10 +484,14 @@ def load_RL_model(exp_number, idx, reward_name, nb_actions):
     n_actions = janus.action_space.shape[-1]
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
-    model_janus_td3 = TD3("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
-    model_janus_td3.load("./data/"+model_name)
+    if rl_algo == 'TD3':
+        model_janus = TD3("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
+    if rl_algo == 'DDPG':
+        model_janus = DDPG("MlpPolicy", janus, action_noise=action_noise, verbose=2,tensorboard_log="./tensorboard/")
     
-    return model_janus_td3
+    model_janus.load("./data/"+model_name)
+    
+    return model_janus
 
 
 # In[42]:
@@ -698,7 +714,7 @@ plot_reward_of_dropouts('smart_clown_hat')
 
 # # Visualize progress for a given dropout
 
-# In[2]:
+# In[147]:
 
 
 #export
@@ -728,7 +744,7 @@ def positionne_point_idx(janus_env, model, fig):
     print(f'final results:  {new_y} reward {janus_env.reward(janus_env.convert_to_real_obs(janus_env.current_position, janus_env.full_x).values.reshape(1,-1)):0.03f} action {janus_env.last_action}')
     fig.add_trace(go.Scatter(x=[new_y[0]], y=[new_y[1]], name='point final obs '+str(janus_env.idx)))
     
-def visualise_avant_apres(exp_number, idx, reward_name, nb_actions=4):
+def visualise_avant_apres(exp_number, idx, reward_name, nb_actions=4, rl_algo = 'TD3'):
     '''
     create janus env(idx, reward_name)
     load rl model()
@@ -739,7 +755,7 @@ def visualise_avant_apres(exp_number, idx, reward_name, nb_actions=4):
     janus = Janus(idx, reward_name, nb_actions)
     check_env(janus)
     janus.reset()
-    RL_model = load_RL_model(exp_number, idx, reward_name, nb_actions)
+    RL_model = load_RL_model(exp_number, idx, reward_name, nb_actions, rl_algo)
 
     fig.update_xaxes(title_text='target_0', range=[inf_limx-3, sup_limx+3])
     fig.update_yaxes(title_text='target_5', range=[inf_limy-3, sup_limy+3])
